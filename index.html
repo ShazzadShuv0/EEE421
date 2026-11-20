@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AC–DC converters, live</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: a patient lab instructor; precise, plain, never chatty.
+   IDEA: an engineering lab manual where every circuit sheet has a live scope bench bolted under it.
+   PICTURE: the hero is phase control itself: a big live waveform you chop with α and densify with pulse number p.
+   COLOUR and TYPE: datasheet cobalt strip, white sheet, pale cobalt zones, one firing-orange accent for gate pulses; Space Grotesk titles, Inter text.
+   LAYOUT: cobalt strip, hero figure full width, then a sticky lecture rail beside one reading column of sheets. */
+:root{color-scheme:light dark;
+ --bg:light-dark(#ffffff,#0a0d18);--ink:light-dark(#10131a,#e7eaf6);--muted:light-dark(#4b5369,#9ea7c2);
+ --cobalt:light-dark(#1240e0,#7d97ff);--strip:light-dark(#1240e0,#13246b);--zone:light-dark(#eef2ff,#121a33);
+ --line:light-dark(#d3dbf6,#27315c);--fire:light-dark(#d9420b,#ff7a45);--bench:light-dark(#f8f9fd,#0e1325);
+ --fill:light-dark(rgba(18,64,224,.14),rgba(125,151,255,.2))}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html{scroll-padding-top:24px;scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--bg);color:var(--ink);font:16.5px/1.6 Inter,system-ui,sans-serif;overflow-x:clip}
+h1,h2,h3{font-family:"Space Grotesk",Inter,sans-serif;font-weight:600;line-height:1.08;text-wrap:balance;margin:0}
+h1{font-size:clamp(34px,5.4vw,56px);letter-spacing:-.02em}
+h2{font-size:clamp(26px,3.4vw,36px);letter-spacing:-.01em}
+h3{font-size:19px;margin:28px 0 8px}
+p{margin:0 0 14px;max-width:68ch}
+a{color:var(--cobalt)}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid var(--fire);outline-offset:2px}
+sub,sup{font-size:.72em}
+.strip{background:var(--strip);color:#fff;padding:12px max(5vw,16px);display:flex;flex-wrap:wrap;gap:6px 24px;justify-content:space-between;font-size:14px}
+.strip a{color:#fff;text-underline-offset:3px}
+.hero{padding:clamp(28px,4vw,56px) max(5vw,16px) 8px;max-width:1320px;margin:0 auto}
+.hero p.lede{font-size:18px;color:var(--muted);margin-top:14px}
+.fig{position:relative;height:clamp(250px,34vw,400px);margin-top:22px;border-top:2px solid var(--ink);border-bottom:1px solid var(--line);background:linear-gradient(var(--zone),var(--bg))}
+.fig>svg{position:absolute;inset:0;width:100%;height:100%}
+.ctrl{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:18px 40px;padding:18px 0 8px;align-items:start}
+.seg{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 14px}
+.seg button{font:500 15px Inter,sans-serif;min-height:44px;padding:0 16px;border-radius:999px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--cobalt);border-color:var(--cobalt);color:var(--bg)}
+.slider{display:flex;align-items:center;gap:14px}
+.slider input{flex:1;accent-color:var(--fire);height:44px}
+.lab{font-size:14px;color:var(--muted)}
+.read{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.read div{border-left:3px solid var(--cobalt);padding:2px 0 2px 14px}
+.read b{display:block;font:600 clamp(26px,3vw,34px)/1.1 "Space Grotesk",sans-serif;white-space:nowrap}
+.layout{display:grid;grid-template-columns:250px minmax(0,1fr);gap:48px;max-width:1320px;margin:0 auto;padding:24px max(5vw,16px) 0}
+nav.rail{position:sticky;top:20px;align-self:start;max-height:calc(100vh - 40px);overflow:auto;font-size:14.5px;padding-bottom:20px}
+.rail h4{font:600 14px "Space Grotesk",sans-serif;margin:18px 0 6px;color:var(--muted)}
+.rail ol{list-style:none;margin:0;padding:0;border-left:1px solid var(--line)}
+.rail a{display:block;padding:5px 0 5px 14px;margin-left:-1px;border-left:3px solid transparent;color:var(--ink);text-decoration:none;line-height:1.35}
+.rail a:hover{color:var(--cobalt)}
+.rail a.on{border-left-color:var(--fire);color:var(--cobalt);font-weight:500}
+main{max-width:900px}
+.sheet{padding:44px 0 36px;border-top:1px solid var(--line)}
+.sheet:first-child{border-top:0;padding-top:8px}
+.ref{font-size:14px;color:var(--muted);margin-bottom:8px}
+.ref b{color:var(--fire);font-weight:600}
+.sum{font-size:18px;margin:12px 0 18px}
+.steps{list-style:none;padding:0;margin:8px 0 18px;display:grid;gap:10px}
+.steps li{display:grid;grid-template-columns:8.5em minmax(0,1fr);gap:14px}
+.steps .at{font:600 15px "Space Grotesk",sans-serif;color:var(--cobalt);white-space:nowrap;padding-top:1px}
+.eq{background:var(--zone);padding:16px 20px;margin:18px 0;display:grid;gap:8px;font-size:17px}
+.eq span{font-size:14px;color:var(--muted)}
+.bench{margin:24px 0 8px;border:1.5px solid light-dark(#10131a,#1b2550);background:var(--bench)}
+.bench-bar{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 16px;padding:10px 14px;background:light-dark(#10131a,#1b2550);color:#fff;font-size:14px}
+.bench-bar a{color:#fff}
+.bench iframe{display:block;width:100%;height:1300px;border:0;background:var(--bench)}
+.try{margin:14px 0 0;padding-left:20px}
+.try li{margin:6px 0;max-width:66ch}
+.note{font-size:14.5px;color:var(--muted);border-left:3px solid var(--line);padding-left:14px;margin:16px 0}
+table{border-collapse:collapse;width:100%;font-size:15px;margin:14px 0}
+th,td{text-align:left;padding:10px 10px 10px 0;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:600 14px "Space Grotesk",sans-serif;color:var(--muted)}
+td.n{white-space:nowrap}
+footer{margin-top:40px;background:var(--strip);color:#fff;padding:36px max(5vw,16px)}
+footer .in{max-width:1320px;margin:0 auto;display:flex;flex-wrap:wrap;gap:20px 48px;justify-content:space-between}
+footer a{color:#fff}
+footer p{max-width:56ch}
+.scroll{overflow-x:auto}
+@media(max-width:1000px){.layout{grid-template-columns:minmax(0,1fr);gap:0}
+ nav.rail{position:static;max-height:none;overflow-x:auto;display:flex;gap:4px 20px;border-bottom:1px solid var(--line);padding:0 0 10px}
+ .rail .grp{flex:none}.rail ol{display:flex;border:0}.rail a{white-space:nowrap;padding:6px 10px;border-left:0;border-bottom:3px solid transparent}
+ .rail a.on{border-bottom-color:var(--fire)}.rail h4{margin:8px 0 0 10px}}
+@media(max-width:720px){.ctrl{grid-template-columns:minmax(0,1fr)}.steps li{grid-template-columns:minmax(0,1fr);gap:0}
+ table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px;border-bottom:1px solid var(--line)}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-8em;color:var(--muted);font-size:12.5px}}
+</style>
+<script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
+</head>
+<body>
+<div class="strip">
+ <span>EEE421 Power Electronics, Lecture 2 companion</span>
+ <span>Built by <a href="https://shazzad-ahmmed-shuvo.vercel.app/">MD Shazzad Ahammed Shuvo</a></span>
+</div>
+
+<header class="hero">
+ <h1>AC–DC converters you can drive</h1>
+ <p class="lede">Every phase-controlled rectifier from the lecture, in slide order, each with a live simulator. Delay the gate pulse by α and watch what the output, the load current and every thyristor do.</p>
+ <div class="fig" id="hfig"><svg id="hsvg" role="img" aria-label="Output voltage of a phase-controlled rectifier for the chosen pulse number and firing angle"></svg></div>
+ <div class="ctrl">
+  <div>
+   <div class="lab" id="plab">Pulse number p</div>
+   <div class="seg" role="group" aria-labelledby="plab">
+    <button data-p="1" aria-pressed="false">1φ half wave, p = 1</button>
+    <button data-p="2" aria-pressed="true">1φ full wave, p = 2</button>
+    <button data-p="3" aria-pressed="false">3φ half wave, p = 3</button>
+    <button data-p="6" aria-pressed="false">3φ bridge, p = 6</button>
+   </div>
+   <div class="slider"><label class="lab" for="ha">Firing angle α</label><input id="ha" type="range" min="0" max="180" step="1" value="45"><b id="hav" style="min-width:3.2em;text-align:right">45°</b></div>
+  </div>
+  <div class="read">
+   <div><span class="lab">Average output, R load</span><b id="hvd">0.54 V<sub>m</sub></b></div>
+   <div><span class="lab">Ripple frequency on 50 Hz mains</span><b id="hfr">100 Hz</b></div>
+  </div>
+ </div>
+ <p class="note" style="margin-top:4px">The orange ticks are gate pulses. Grey curves are the supply voltages the converter can pick from; the blue area is what reaches a resistive load. V<sub>m</sub> is the peak phase voltage.</p>
+</header>
+
+<div class="layout">
+<nav class="rail" aria-label="Lecture contents">
+ <div class="grp"><h4>Basics</h4><ol><li><a href="#foundations">What a rectifier does</a></li></ol></div>
+ <div class="grp"><h4>Single-phase half wave</h4><ol>
+  <li><a href="#hw-r">R load</a></li><li><a href="#hw-rl">R-L load</a></li><li><a href="#hw-rle">R-L-E load</a></li><li><a href="#hw-fd">R-L load with freewheeling diode</a></li></ol></div>
+ <div class="grp"><h4>Single-phase full wave</h4><ol>
+  <li><a href="#mp-r">Mid-point, R load</a></li><li><a href="#mp-rl">Mid-point, R-L load</a></li><li><a href="#br-full">Bridge full converter</a></li><li><a href="#br-semi">Bridge semiconverter</a></li></ol></div>
+ <div class="grp"><h4>Three-phase</h4><ol>
+  <li><a href="#diode-3ph">Diode rectifiers</a></li><li><a href="#tp-hw">Half-wave controlled</a></li><li><a href="#line-v">Primer: line voltages</a></li><li><a href="#tp-semi">Semiconverter</a></li><li><a href="#tp-full">Full converter</a></li></ol></div>
+ <div class="grp"><h4>After the rectifier</h4><ol>
+  <li><a href="#dc-filter">DC-side filtering</a></li><li><a href="#ac-mains">Effect on AC mains</a></li><li><a href="#summary">Formula sheet</a></li></ol></div>
+</nav>
+
+<main>
+<section class="sheet" id="foundations">
+ <div class="ref"><b>Slides 3–5</b> Introduction and classification</div>
+ <h2>What a rectifier does</h2>
+ <p class="sum">The grid delivers AC because it travels well; most equipment needs DC. A rectifier makes current flow one way, a filter smooths the pulses, and a regulator holds the final level.</p>
+ <p>The switch decides what kind of converter you get. Diodes conduct whenever they are forward-biased, so their output is fixed. Thyristors (SCRs) are forward-biased and still wait: they turn on only when a gate pulse arrives. Delaying that pulse by the firing angle α is how every circuit on this page controls its DC output. PWM rectifiers with MOSFETs or IGBTs switch thousands of times per cycle for very clean DC, and appear at the end of the lecture.</p>
+ <h3>Quadrants: which signs the output can take</h3>
+ <table class="stack">
+  <thead><tr><th>Converter</th><th>Output voltage</th><th>Output current</th><th>Power flow</th></tr></thead>
+  <tbody>
+   <tr><td>Semiconverter</td><td>Positive only</td><td>Positive only</td><td>AC to DC (one quadrant)</td></tr>
+   <tr><td>Full converter</td><td>Positive or negative</td><td>Positive only</td><td>Both ways (two quadrants): rectifier for α &lt; 90°, inverter for α &gt; 90°</td></tr>
+   <tr><td>Dual converter</td><td>Positive or negative</td><td>Positive or negative</td><td>Four quadrants: two full converters back to back</td></tr>
+  </tbody>
+ </table>
+</section>
+
+<section class="sheet" id="hw-r">
+ <div class="ref"><b>Slides 6–7</b> Principle of phase control</div>
+ <h2>Single-phase half wave, R load</h2>
+ <p class="sum">One thyristor in series with a resistor. It blocks until the gate fires at α, conducts until the supply reaches zero at π, then blocks the whole negative half.</p>
+ <ol class="steps">
+  <li><span class="at">0 → α</span><span>Forward blocking. The anode is positive but there is no gate pulse, so i<sub>o</sub> = 0 and the full supply appears across the SCR: v<sub>T</sub> = v<sub>s</sub>.</span></li>
+  <li><span class="at">α → π</span><span>Conducting. v<sub>o</sub> = v<sub>s</sub>, v<sub>T</sub> ≈ 0, and i<sub>o</sub> = v<sub>s</sub>/R has the same shape as v<sub>o</sub>.</span></li>
+  <li><span class="at">At π</span><span>The current reaches zero together with the supply, so the SCR turns off by itself (natural, or line, commutation).</span></li>
+  <li><span class="at">π → 2π</span><span>Reverse blocking: v<sub>T</sub> = v<sub>s</sub> &lt; 0. The next pulse comes at 2π + α.</span></li>
+ </ol>
+ <div class="eq">
+  <div>V<sub>dc</sub> = (V<sub>m</sub> / 2π)(1 + cos α)</div>
+  <div>V<sub>rms</sub> = (V<sub>m</sub> / 2) √[(1/π)(π − α + ½ sin 2α)]</div>
+  <span>Peak reverse voltage V<sub>m</sub>; peak forward blocking V<sub>m</sub> sin α for α ≤ 90°, V<sub>m</sub> beyond.</span>
+ </div>
+ <figure class="bench"><div class="bench-bar"><span>Simulator: half wave, R load</span><a href="sims/1ph-halfwave-r.html" target="_blank" rel="noopener">Open on its own</a></div><iframe class="sim" loading="lazy" src="sims/1ph-halfwave-r.html" title="Single-phase half-wave converter with R load simulator"></iframe></figure>
+ <ul class="try"><li>Sweep α and watch the amber forward-blocking area in v<sub>T</sub> grow: that is the voltage the SCR must hold off before firing.</li><li>Set α = 0: the circuit behaves exactly like a diode rectifier.</li></ul>
+</section>
+
+<section class="sheet" id="hw-rl">
+ <div class="ref"><b>Slide 8</b> Half wave converter with inductive load</div>
+ <h2>Single-phase half wave, R-L load</h2>
+ <p class="sum">The inductor resists change in current, so current builds slowly after α and keeps flowing past π. The SCR stays on into the negative half-cycle until the current dies at the extinction angle β.</p>
+ <ol class="steps">
+  <li><span class="at">α → peak</span><span>Current rises; v<sub>L</sub> = v<sub>s</sub> − Ri &gt; 0 and the inductor stores energy.</span></li>
+  <li><span class="at">peak → π</span><span>v<sub>s</sub> has fallen below Ri, so v<sub>L</sub> &lt; 0: the inductor starts giving energy back while the supply is still positive.</span></li>
+  <li><span class="at">π → β</span><span>Area B. v<sub>s</sub> is negative, yet the inductor holds the SCR on, so v<sub>o</sub> follows v<sub>s</sub> below zero. Part of the stored energy heats R, part returns to the supply.</span></li>
+  <li><span class="at">β → 2π + α</span><span>SCR off; v<sub>T</sub> steps straight to the negative supply voltage.</span></li>
+ </ol>
+ <div class="eq">
+  <div>i<sub>o</sub> = (V<sub>m</sub>/Z)[sin(ωt − φ) − sin(α − φ) e<sup>−(ωt − α)/tan φ</sup>],  Z = √(R² + ω²L²),  φ = tan<sup>−1</sup>(ωL/R)</div>
+  <div>V<sub>dc</sub> = (V<sub>m</sub> / 2π)(cos α − cos β)</div>
+  <span>β has no closed form; the simulator solves i<sub>o</sub>(β) = 0 numerically.</span>
+ </div>
+ <p class="note">Why does the inductor stop charging before π? It charges while v<sub>s</sub> &gt; Ri, not while v<sub>s</sub> &gt; 0. At π the supply is zero but Ri is still positive, so the current peak always comes earlier. Only a pure inductor (R = 0) peaks exactly at π; drag φ toward 89° to see the peak slide right.</p>
+ <figure class="bench"><div class="bench-bar"><span>Simulator: half wave, R-L load</span><a href="sims/1ph-halfwave-rl.html" target="_blank" rel="noopener">Open on its own</a></div><iframe class="sim" loading="lazy" src="sims/1ph-halfwave-rl.html" title="Single-phase half-wave converter with R-L load simulator"></iframe></figure>
+ <ul class="try"><li>In the v<sub>L</sub> panel the yellow and red areas are always equal: an inductor's average voltage over a cycle is zero.</li><li>Raise φ and watch area B grow and V<sub>dc</sub> fall.</li></ul>
+</section>
+
+<section class="sheet" id="hw-rle">
+ <div class="ref"><b>Slide 9</b> Half wave converter with R-L-E load</div>
+ <h2>Adding a back-EMF: battery or DC motor</h2>
+ <p class="sum">With a counter-EMF E in the load, the SCR is forward-biased only while v<sub>s</sub> &gt; E. That sets a minimum useful firing angle.</p>
+ <div class="eq">
+  <div>θ<sub>1</sub> = sin<sup>−1</sup>(E / V<sub>m</sub>)</div>
+  <span>Fire at α &lt; θ<sub>1</sub> and the SCR is still reverse-biased (E &gt; v<sub>s</sub>), so it will not turn on. Conduction can last at most until π − θ<sub>1</sub> plus whatever extra the inductance provides.</span>
+ </div>
+ <p class="note">No simulator for this one: the R-L sheet above shows the same mechanism with E = 0.</p>
+</section>
+
+<section class="sheet" id="hw-fd">
+ <div class="ref"><b>Slide 10</b> Inductive load with freewheeling diode</div>
+ <h2>Half wave, R-L load with freewheeling diode</h2>
+ <p class="sum">A diode across the load gives the inductor's current somewhere to go when the supply reverses. The output is clamped at zero instead of going negative, so area B disappears.</p>
+ <ol class="steps">
+  <li><span class="at">α → π</span><span>Mode 1: SCR conducts, v<sub>o</sub> = v<sub>s</sub>, the freewheeling diode FD is reverse-biased.</span></li>
+  <li><span class="at">At π</span><span>v<sub>o</sub> tries to go negative, FD turns on and takes the current; the SCR is reverse-biased and turns off at once.</span></li>
+  <li><span class="at">π → 2π + α</span><span>Mode 2: current circulates through FD, R and L and decays exponentially. All the stored energy is burned in R; none goes back to the supply.</span></li>
+ </ol>
+ <div class="eq">
+  <div>V<sub>dc</sub> = (V<sub>m</sub> / 2π)(1 + cos α), the same as an R load and independent of L</div>
+  <span>With large L the current has not decayed when the next pulse arrives: conduction becomes continuous.</span>
+ </div>
+ <figure class="bench"><div class="bench-bar"><span>Simulator: half wave, R-L load with FD</span><a href="sims/1ph-halfwave-rl-fd.html" target="_blank" rel="noopener">Open on its own</a></div><iframe class="sim" loading="lazy" src="sims/1ph-halfwave-rl-fd.html" title="Single-phase half-wave converter with freewheeling diode simulator"></iframe></figure>
+ <ul class="try"><li>Push φ above about 75° and the mode card switches to continuous.</li><li>Move φ while watching V<sub>dc</sub>: it does not change.</li></ul>
+ <p class="note">Single-phase half-wave circuits give one pulse of load current per cycle: one-pulse converters. Practice: Bimbhra, Exercises 6.1 to 6.4, p. 241.</p>
+</section>
+
+<section class="sheet" id="mp-r">
+ <div class="ref"><b>Slide 14</b> Single-phase full-wave mid-point converter</div>
+ <h2>Mid-point converter, R load</h2>
+ <p class="sum">A centre-tapped transformer gives two equal, opposite half-windings. T1 serves the positive half-cycle, T2 the negative one, so the load gets two pulses per cycle.</p>
+ <ol class="steps">
+  <li><span class="at">α → π</span><span>T1 on, v<sub>o</sub> = v<sub>an</sub>. The common cathode sits at v<sub>an</sub>, so T2 sees v<sub>bn</sub> − v<sub>an</sub> = −2v<sub>an</sub>.</span></li>
+  <li><span class="at">π → π + α</span><span>Nothing conducts; each SCR sees only its own half-winding.</span></li>
+  <li><span class="at">π + α → 2π</span><span>T2 on, v<sub>o</sub> = v<sub>bn</sub>. Now T1 sees 2v<sub>an</sub>, dipping to −2V<sub>m</sub>.</span></li>
+ </ol>
+ <div class="eq">
+  <div>V<sub>dc</sub> = (V<sub>m</sub> / π)(1 + cos α)</div>
+  <div>V<sub>rms</sub> = (V<sub>m</sub> / √2) √[(1/π)(π − α + ½ sin 2α)]</div>
+  <span>Peak reverse voltage per SCR: 2V<sub>m</sub>, the main cost of using only two thyristors.</span>
+ </div>
+ <figure class="bench"><div class="bench-bar"><span>Simulator: mid-point, R load</span><a href="sims/1ph-midpoint-r.html" target="_blank" rel="noopener">Open on its own</a></div><iframe class="sim" loading="lazy" src="sims/1ph-midpoint-r.html" title="Mid-point converter with R load simulator"></iframe></figure>
+ <ul class="try"><li>Watch v<sub>T1</sub> step down to twice the depth the moment T2 fires; the dotted line marks −2V<sub>m</sub>.</li></ul>
+</section>
+
+<section class="sheet" id="mp-rl">
+ <div class="ref"><b>Slide 14</b> Single-phase two-pulse converter, inductive load</div>
+ <h2>Mid-point converter, R-L load</h2>
+ <p class="sum">The inductor keeps each SCR conducting past π. If the next SCR fires before the current dies, the hand-over is direct and the load current never stops.</p>
+ <ol class="steps">
+  <li><span class="at">α → π</span><span>T1 on, the supply drives the load.</span></li>
+  <li><span class="at">π → π + α</span><span>v<sub>an</sub> is negative, but the inductor holds T1 on: v<sub>o</sub> dips below zero.</span></li>
+  <li><span class="at">At π + α</span><span>T2 fires, connects the cathode to the positive v<sub>bn</sub> and reverse-biases T1: line commutation.</span></li>
+ </ol>
+ <div class="eq">
+  <div>Continuous when α &lt; φ: V<sub>dc</sub> = (2V<sub>m</sub> / π) cos α</div>
+  <div>Discontinuous when α ≥ φ: V<sub>dc</sub> = (V<sub>m</sub> / π)(cos α − cos β)</div>
+  <span>In continuous mode the off SCR always sees 2v<sub>s</sub>, including forward blocking up to 2V<sub>m</sub> sin α.</span>
+ </div>
+ <figure class="bench"><div class="bench-bar"><span>Simulator: mid-point, R-L load</span><a href="sims/1ph-midpoint-rl.html" target="_blank" rel="noopener">Open on its own</a></div><iframe class="sim" loading="lazy" src="sims/1ph-midpoint-rl.html" title="Mid-point converter with R-L load simulator"></iframe></figure>
+ <ul class="try"><li>Hold φ = 70° and sweep α: the mode flips to discontinuous exactly at α = 70°.</li><li>With a passive R-L load, α &gt; 90° is always discontinuous, so V<sub>dc</sub> cannot stay negative.</li></ul>
+</section>
+
+<section class="sheet" id="br-full">
+ <div class="ref"><b>Slide 15</b> Single-phase bridge full converter</div>
+ <h2>Bridge full converter, four SCRs</h2>
+ <p class="sum">T1 + T2 fire together at α, T3 + T4 at π + α. Output voltage and load current match the mid-point converter, but each SCR only sees V<sub>m</sub> and no centre tap is needed.</p>
+ <ol class="steps">
+  <li><span class="at">T1 + T2 on</span><span>v<sub>o</sub> = +v<sub>s</sub>, i<sub>s</sub> = +i<sub>o</sub>.</span></li>
+  <li><span class="at">T3 + T4 on</span><span>v<sub>o</sub> = −v<sub>s</sub>, i<sub>s</sub> = −i<sub>o</sub>. Load current keeps its direction; supply current flips.</span></li>
+  <li><span class="at">At π + α</span><span>The incoming pair reverse-biases the outgoing pair by v<sub>s</sub>.</span></li>
+ </ol>
+ <div class="eq">
+  <div>V<sub>dc</sub> = (2V<sub>m</sub> / π) cos α (continuous)</div>
+  <span>Two-quadrant: rectifier for α &lt; 90°, inverter for α &gt; 90° when the load contains a source such as a motor's back-EMF. i<sub>s</sub> lags v<sub>s</sub> by α, so the displacement factor is cos α.</span>
+ </div>
+ <figure class="bench"><div class="bench-bar"><span>Simulator: bridge full converter</span><a href="sims/1ph-bridge-full.html" target="_blank" rel="noopener">Open on its own</a></div><iframe class="sim" loading="lazy" src="sims/1ph-bridge-full.html" title="Single-phase bridge full converter simulator"></iframe></figure>
+ <ul class="try"><li>Compare v<sub>T1</sub> here with the mid-point sheet: the peak is V<sub>m</sub>, not 2V<sub>m</sub>.</li><li>Watch the positive part of v<sub>T3</sub> just before π + α: forward blocking, waiting for the gate.</li></ul>
+</section>
+
+<section class="sheet" id="br-semi">
+ <div class="ref"><b>Slide 16</b> Single-phase bridge semiconverter</div>
+ <h2>Bridge semiconverter, two SCRs and two diodes</h2>
+ <p class="sum">Half the bridge is diodes, which give the inductor a freewheeling path. The output can never go negative, so this is a one-quadrant converter.</p>
+ <ol class="steps">
+  <li><span class="at">α → π</span><span>T1 + D1 conduct: v<sub>o</sub> = v<sub>s</sub>, i<sub>s</sub> = +i<sub>o</sub>.</span></li>
+  <li><span class="at">π → π + α</span><span>Freewheeling: through D<sub>m</sub> if fitted, otherwise through T1 + D2 in one leg. v<sub>o</sub> = 0, i<sub>s</sub> = 0.</span></li>
+  <li><span class="at">π + α → 2π</span><span>T2 + D2 conduct: v<sub>o</sub> = −v<sub>s</sub> &gt; 0, i<sub>s</sub> = −i<sub>o</sub>.</span></li>
+ </ol>
+ <div class="eq">
+  <div>V<sub>dc</sub> = (V<sub>m</sub> / π)(1 + cos α)</div>
+  <span>The supply current has zero gaps, so its fundamental lags by about α/2 instead of α: a better input power factor than the full converter.</span>
+ </div>
+ <figure class="bench"><div class="bench-bar"><span>Simulator: bridge semiconverter</span><a href="sims/1ph-bridge-semi.html" target="_blank" rel="noopener">Open on its own</a></div><iframe class="sim" loading="lazy" src="sims/1ph-bridge-semi.html" title="Single-phase bridge semiconverter simulator"></iframe></figure>
+ <ul class="try"><li>Toggle D<sub>m</sub> off: v<sub>o</sub>, i<sub>o</sub> and i<sub>s</sub> stay the same, but each SCR and diode now conducts a full 180°.</li></ul>
+ <p class="note">Practice: Bimbhra, Example 6.26 and Exercise 6.8, p. 242.</p>
+</section>
+
+<section class="sheet" id="diode-3ph">
+ <div class="ref"><b>Slides 19–21</b> Three-phase rectifiers using diodes</div>
+ <h2>Three-phase diode rectifiers</h2>
+ <p class="sum">With three phases, the output is simply the highest available voltage at each instant. No gate is needed: the diode on the most positive phase always wins.</p>
+ <p>In the common-cathode half-wave circuit the output follows the top of the three phase voltages: three pulses per cycle. The common-anode version follows the bottom. Put both together and you get the six-pulse bridge, whose output is the largest line-to-line voltage at every instant. Each diode switches at the natural commutation points where two phase curves cross, 30° after each zero crossing. Those crossings become the zero reference for α in the controlled versions below.</p>
+</section>
+
+<section class="sheet" id="tp-hw">
+ <div class="ref"><b>Slide 22</b> Three-phase half-wave controlled rectifier, three-pulse converter</div>
+ <h2>Three-phase half-wave controlled, R load</h2>
+ <p class="sum">Three SCRs with a common cathode. α is measured from the 30° crossover, not from the phase zero crossing, because that is the earliest moment an SCR is forward-biased against the one already conducting.</p>
+ <ol class="steps">
+  <li><span class="at">α = 0</span><span>T1 fires at 30°, T2 at 150°, T3 at 270°; each conducts 120° and the output tracks the highest phase.</span></li>
+  <li><span class="at">0 &lt; α ≤ 30°</span><span>Still continuous. Being forward-biased does not turn T2 on; it waits for its pulse at 150° + α.</span></li>
+  <li><span class="at">α &gt; 30°</span><span>The conducting phase crosses zero before the next pulse, so v<sub>o</sub> drops to zero in gaps.</span></li>
+ </ol>
+ <div class="eq">
+  <div>α ≤ 30°: V<sub>dc</sub> = (3√3 V<sub>m</sub> / 2π) cos α = 0.827 V<sub>m</sub> cos α</div>
+  <div>α &gt; 30°: V<sub>dc</sub> = (3V<sub>m</sub> / 2π)[1 + cos(α + 30°)]</div>
+ </div>
+ <figure class="bench"><div class="bench-bar"><span>Simulator: three-phase half wave, R load</span><a href="sims/3ph-halfwave-r.html" target="_blank" rel="noopener">Open on its own</a></div><iframe class="sim" loading="lazy" src="sims/3ph-halfwave-r.html" title="Three-phase half-wave controlled rectifier simulator"></iframe></figure>
+ <ul class="try"><li>Set α = 30° and look at 180°: the output just touches zero. That is the boundary between continuous and discontinuous.</li></ul>
+</section>
+
+<section class="sheet" id="line-v">
+ <div class="ref"><b>Primer for slides 23–30</b> Where line voltages come from</div>
+ <h2>How v<sub>an</sub> − v<sub>cn</sub> makes a sine wave</h2>
+ <p class="sum">Bridge outputs are line voltages, the vertical gap between two phase curves. Two curves can both be falling while the gap between them grows.</p>
+ <p>The slope of v<sub>ac</sub> is the slope of v<sub>an</sub> minus the slope of v<sub>cn</sub>. Between 90° and 120°, v<sub>an</sub> is flat near its peak while v<sub>cn</sub> falls fast, so the gap widens. At 120° the slopes match and v<sub>ac</sub> peaks at √3 V<sub>m</sub>. After that v<sub>an</sub> falls faster and the gap closes.</p>
+ <div class="eq"><div>v<sub>ac</sub> = v<sub>an</sub> − v<sub>cn</sub> = √3 V<sub>m</sub> sin(ωt − 30°)</div></div>
+ <figure class="bench"><div class="bench-bar"><span>Animation: line voltage from two phases</span><a href="sims/line-voltage.html" target="_blank" rel="noopener">Open on its own</a></div><iframe class="sim" loading="lazy" src="sims/line-voltage.html" title="Line voltage animation"></iframe></figure>
+</section>
+
+<section class="sheet" id="tp-semi">
+ <div class="ref"><b>Slides 23–27</b> Three-phase full-wave semiconverter</div>
+ <h2>Three-phase semiconverter, highly inductive load</h2>
+ <p class="sum">The top row is controlled thyristors, the bottom row plain diodes. The output is (thyristor's phase) − (most negative phase), so only half of each line-voltage pair moves with α.</p>
+ <ol class="steps">
+  <li><span class="at">α ≤ 60°</span><span>Six-pulse operation: v<sub>o</sub> never reaches zero and D<sub>m</sub> stays off. Each SCR conducts 120°.</span></li>
+  <li><span class="at">α &gt; 60°</span><span>Three-pulse operation: v<sub>o</sub> would go negative, so D<sub>m</sub> freewheels the load current and v<sub>o</sub> = 0. Each SCR conducts 180° − α.</span></li>
+ </ol>
+ <div class="eq">
+  <div>V<sub>dc</sub> = (3√3 V<sub>m</sub> / 2π)(1 + cos α)</div>
+  <span>Load current assumed constant (I<sub>o</sub>). Output never reverses, so no inverter mode.</span>
+ </div>
+ <figure class="bench"><div class="bench-bar"><span>Simulator: three-phase semiconverter</span><a href="sims/3ph-semi.html" target="_blank" rel="noopener">Open on its own</a></div><iframe class="sim" loading="lazy" src="sims/3ph-semi.html" title="Three-phase semiconverter simulator"></iframe></figure>
+ <ul class="try"><li>Set α = 90° to match the slide's example and watch D<sub>m</sub> carry the current in the gaps.</li><li>Watch i<sub>a</sub>: the positive block shifts with α, the negative block from D2 does not.</li></ul>
+</section>
+
+<section class="sheet" id="tp-full">
+ <div class="ref"><b>Slides 28–30</b> Three-phase full-wave full converter</div>
+ <h2>Three-phase full converter, six SCRs</h2>
+ <p class="sum">Both rows are controlled. Thyristors are numbered in firing order, 60° apart, so the output stays six-pulse at every α and can go negative.</p>
+ <ol class="steps">
+  <li><span class="at">Pairs</span><span>5-6, 6-1, 1-2, 2-3, 3-4, 4-5: one top and one bottom SCR always conduct; every 60° one hands over.</span></li>
+  <li><span class="at">Gate pulses</span><span>120° wide (or double pulses 60° apart) so both SCRs of a pair have a gate signal at start-up.</span></li>
+  <li><span class="at">α &gt; 90°</span><span>Inverter mode: average voltage reverses while current keeps its direction, if the DC side has a source.</span></li>
+ </ol>
+ <div class="eq">
+  <div>V<sub>dc</sub> = (3√3 V<sub>m</sub> / π) cos α = 1.654 V<sub>m</sub> cos α</div>
+  <span>i<sub>a</sub> is a quasi-square wave, +I<sub>o</sub> for 120°, zero for 60°, −I<sub>o</sub> for 120°, shifted by α.</span>
+ </div>
+ <figure class="bench"><div class="bench-bar"><span>Simulator: three-phase full converter</span><a href="sims/3ph-full.html" target="_blank" rel="noopener">Open on its own</a></div><iframe class="sim" loading="lazy" src="sims/3ph-full.html" title="Three-phase full converter simulator"></iframe></figure>
+ <ul class="try"><li>Set α = 60° to match the slide, then push past 90° and watch V<sub>dc</sub> change sign.</li></ul>
+</section>
+
+<section class="sheet" id="dc-filter">
+ <div class="ref"><b>Slides 31–35</b> DC-side harmonics filtering</div>
+ <h2>Smoothing what comes out</h2>
+ <p class="sum">The output is a DC average with a ripple on top. Its lowest ripple frequency is the pulse number times the mains frequency, which is why more pulses mean easier filtering.</p>
+ <div class="eq"><div>f<sub>r</sub> = p · f<sub>mains</sub>  (50 Hz mains: 50, 100, 150 and 300 Hz for p = 1, 2, 3, 6)</div><div>LC resonance f<sub>0</sub> = 1 / (2π√LC), chosen so f<sub>0</sub> ≪ f<sub>r</sub></div></div>
+ <table class="stack">
+  <thead><tr><th>Filter</th><th>Arrangement</th><th>Best for</th></tr></thead>
+  <tbody>
+   <tr><td>Inductor</td><td>L in series; blocks AC ripple, passes DC</td><td>High load current</td></tr>
+   <tr><td>Capacitor</td><td>C across the load; bypasses ripple</td><td>Low load current</td></tr>
+   <tr><td>L-section</td><td>Series L then shunt C</td><td>Output nearly independent of load</td></tr>
+   <tr><td>π-section</td><td>C, series L, C</td><td>Output near peak voltage, excellent ripple rejection</td></tr>
+   <tr><td>Active</td><td>Senses ripple and injects the opposite</td><td>Compact, lower-power systems</td></tr>
+  </tbody>
+ </table>
+</section>
+
+<section class="sheet" id="ac-mains">
+ <div class="ref"><b>Slides 36–39</b> Effect of the rectifier on the AC mains</div>
+ <h2>What the rectifier does to the supply</h2>
+ <p class="sum">Switching draws a non-sinusoidal current: a fundamental with harmonics on top. You have already seen it as i<sub>s</sub> in the full-converter simulators.</p>
+ <p>Higher pulse numbers cut distortion: the lecture quotes a line-current THD of 28.45% for a 6-pulse rectifier and 9.14% for 12-pulse. Preventive fixes are multi-pulse converters with suitable transformer connections, active front ends that use PWM to draw near-sinusoidal current in phase with the voltage, and balancing single-phase loads across phases. Remedial fixes are tuned passive filters and active filters that inject an equal and opposite harmonic current.</p>
+</section>
+
+<section class="sheet" id="summary">
+ <div class="ref"><b>All sheets</b> Quick reference</div>
+ <h2>Formula sheet</h2>
+ <p class="sum">V<sub>m</sub> is the peak phase (or half-winding) voltage. V<sub>dc</sub> is for continuous conduction unless the load is resistive.</p>
+ <div class="scroll"><table class="stack">
+  <thead><tr><th>Converter</th><th>p</th><th>V<sub>dc</sub></th><th>Quadrants</th><th>Peak SCR voltage</th></tr></thead>
+  <tbody>
+   <tr><td>1φ half wave (R, or R-L with FD)</td><td>1</td><td class="n">(V<sub>m</sub>/2π)(1 + cos α)</td><td>1</td><td>V<sub>m</sub></td></tr>
+   <tr><td>1φ mid-point</td><td>2</td><td class="n">(2V<sub>m</sub>/π) cos α</td><td>2</td><td>2V<sub>m</sub></td></tr>
+   <tr><td>1φ bridge full converter</td><td>2</td><td class="n">(2V<sub>m</sub>/π) cos α</td><td>2</td><td>V<sub>m</sub></td></tr>
+   <tr><td>1φ bridge semiconverter</td><td>2</td><td class="n">(V<sub>m</sub>/π)(1 + cos α)</td><td>1</td><td>V<sub>m</sub></td></tr>
+   <tr><td>3φ half wave</td><td>3</td><td class="n">(3√3V<sub>m</sub>/2π) cos α</td><td>2</td><td>√3V<sub>m</sub></td></tr>
+   <tr><td>3φ semiconverter</td><td>6 or 3</td><td class="n">(3√3V<sub>m</sub>/2π)(1 + cos α)</td><td>1</td><td>√3V<sub>m</sub></td></tr>
+   <tr><td>3φ full converter</td><td>6</td><td class="n">(3√3V<sub>m</sub>/π) cos α</td><td>2</td><td>√3V<sub>m</sub></td></tr>
+  </tbody>
+ </table></div>
+</section>
+</main>
+</div>
+
+<footer>
+ <div class="in">
+  <p><b>Built by MD Shazzad Ahammed Shuvo.</b> See more of his work at <a href="https://shazzad-ahmmed-shuvo.vercel.app/">shazzad-ahmmed-shuvo.vercel.app</a>.</p>
+  <p>A study companion following the sequence of EEE421 Lecture 2, AC–DC Converters. Simulators assume ideal switches; where noted, the load current is taken as constant.</p>
+ </div>
+</footer>
+
+<script>
+{
+const $=s=>document.querySelector(s),R=d=>d*Math.PI/180;
+let P=2,A=45;
+const cfg={1:{c:0,w:360,d:0,amp:1},2:{c:0,w:180,d:0,amp:1},3:{c:30,w:120,d:0,amp:1},6:{c:30,w:60,d:-30,amp:Math.sqrt(3)}};
+function src(p,k,t){const g=cfg[p];return g.amp*Math.sin(R(t-g.w*k-g.d));}
+function vo(p,a,t){const g=cfg[p],k=Math.floor((t-g.c-a)/g.w);return Math.max(0,src(p,k,t));}
+function vdc(p,a){let s=0,n=0;for(let t=0;t<360;t+=0.5){s+=vo(p,a,t);n++;}return s/n;}
+const svg=$('#hsvg');
+function draw(){const W=svg.clientWidth,H=svg.clientHeight;if(!W)return;
+ const T=720,small=W<520,pl=small?8:36,pr=8,top=26,bot=small?18:30;
+ const amp=cfg[P].amp,yz=top+(H-top-bot)*0.62,ys=(H-top-bot)*0.58/1.8;
+ const X=t=>pl+(W-pl-pr)*t/T,Y=v=>yz-ys*v;
+ const css=getComputedStyle(document.documentElement),cob=css.getPropertyValue('--cobalt'),fire=css.getPropertyValue('--fire'),ink=css.getPropertyValue('--ink'),mut=css.getPropertyValue('--muted'),fill=css.getPropertyValue('--fill'),line=css.getPropertyValue('--line');
+ let h='';
+ for(let t=0;t<=T;t+=90)h+=`<line x1="${X(t)}" y1="${top}" x2="${X(t)}" y2="${H-bot}" stroke="${line}" stroke-width="1"/>`;
+ h+=`<line x1="${pl}" y1="${Y(0)}" x2="${W-pr}" y2="${Y(0)}" stroke="${ink}" stroke-width="1"/>`;
+ const g=cfg[P],ks=new Set();for(let t=-g.w;t<=T+g.w;t+=g.w)ks.add(Math.floor((t-g.c)/g.w));
+ if(P<=3||!small)for(const k of ks){let d='';for(let t=0;t<=T;t+=4)d+=(t?'L':'M')+X(t).toFixed(1)+' '+Y(src(P,k,t)).toFixed(1);h+=`<path d="${d}" fill="none" stroke="${mut}" stroke-width="1" opacity=".35"/>`;}
+ let a='M'+X(0)+' '+Y(0),l='';for(let t=0;t<=T;t+=1){const v=vo(P,A,t);a+='L'+X(t).toFixed(1)+' '+Y(v).toFixed(1);l+=(t?'L':'M')+X(t).toFixed(1)+' '+Y(v).toFixed(1);}
+ a+='L'+X(T)+' '+Y(0)+'Z';h+=`<path d="${a}" fill="${fill}"/><path d="${l}" fill="none" stroke="${cob}" stroke-width="2.5" stroke-linejoin="round"/>`;
+ for(let k=-1;k<=Math.ceil(T/g.w);k++){const f=g.c+A+g.w*k;if(f>=0&&f<=T)h+=`<rect x="${X(f)-2}" y="${H-bot-14}" width="4" height="14" fill="${fire}"/>`;}
+ const f0=g.c+A+(g.c+A<0?g.w:0);const n0=g.c;
+ if(A>=8&&X(f0)-X(n0)>26){const yy=top+4;h+=`<line x1="${X(n0)}" y1="${yy}" x2="${X(f0)}" y2="${yy}" stroke="${fire}" stroke-width="1.5"/><line x1="${X(n0)}" y1="${yy-5}" x2="${X(n0)}" y2="${yy+5}" stroke="${fire}" stroke-width="1.5"/><line x1="${X(f0)}" y1="${yy-5}" x2="${X(f0)}" y2="${yy+5}" stroke="${fire}" stroke-width="1.5"/><text x="${(X(n0)+X(f0))/2}" y="${yy+18}" text-anchor="middle" font-family="Inter" font-size="14" fill="${fire}">α</text>`;}
+ const vd=vdc(P,A);h+=`<line x1="${pl}" y1="${Y(vd)}" x2="${W-pr}" y2="${Y(vd)}" stroke="${ink}" stroke-width="1.2" stroke-dasharray="7 5"/><text x="${W-pr-4}" y="${Y(vd)-6}" text-anchor="end" font-family="Inter" font-size="13" fill="${ink}">V<tspan font-size="10" dy="3">dc</tspan></text>`;
+ if(!small)['0','π','2π','3π','4π'].forEach((s,i)=>{h+=`<text x="${X(180*i)}" y="${H-8}" text-anchor="middle" font-family="Inter" font-size="13" fill="${mut}">${s}</text>`;});
+ svg.innerHTML=h;
+ $('#hvd').innerHTML=vd.toFixed(2)+' V<sub>m</sub>';$('#hfr').textContent=(P*50)+' Hz';$('#hav').textContent=A+'°';}
+const ro=new ResizeObserver(draw);ro.observe(svg);
+document.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click',()=>{P=+b.dataset.p;document.querySelectorAll('.seg button').forEach(x=>x.setAttribute('aria-pressed',x===b));draw();}));
+$('#ha').addEventListener('input',e=>{A=+e.target.value;draw();});
+
+const links=[...document.querySelectorAll('.rail a')],secs=links.map(l=>document.querySelector(l.getAttribute('href')));
+const io=new IntersectionObserver(es=>{for(const e of es)if(e.isIntersecting){links.forEach(l=>l.classList.toggle('on',l.getAttribute('href')==='#'+e.target.id));}},{rootMargin:'-20% 0px -70% 0px'});
+secs.forEach(s=>s&&io.observe(s));
+
+const isDark=()=>{const t=document.documentElement.dataset.theme;return t?t==='dark':matchMedia('(prefers-color-scheme: dark)').matches;};
+function prep(f){let d;try{d=f.contentDocument;}catch(e){return;}if(!d||!d.body)return;
+ d.documentElement.setAttribute('data-mode',isDark()?'dark':'light');
+ if(!d.getElementById('host-css')){const s=d.createElement('style');s.id='host-css';s.textContent='body{padding:14px 12px 20px!important;background:transparent!important;max-width:760px;margin:0 auto!important}';d.head.appendChild(s);}
+ const box=d.getElementById('vis-container')||d.body;const fit=()=>{const h=Math.ceil(box.getBoundingClientRect().bottom+(d.defaultView.scrollY||0)+22);if(h>80)f.style.height=h+'px';};fit();
+ if(!f._ro){f._ro=new ResizeObserver(fit);f._ro.observe(box);}}
+const frames=[...document.querySelectorAll('iframe.sim')];
+frames.forEach(f=>{f.addEventListener('load',()=>prep(f));try{if(f.contentDocument&&f.contentDocument.readyState==='complete'&&f.contentDocument.body&&f.contentDocument.body.children.length)prep(f);}catch(e){}});
+const retheme=()=>{frames.forEach(prep);draw();};
+new MutationObserver(retheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',retheme);
+}
+</script>
+</body>
+</html>
